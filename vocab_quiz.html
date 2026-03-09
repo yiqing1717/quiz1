@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>安招國小單字檢測</title>
+    <style>
+        body { font-family: "Microsoft JhengHei", sans-serif; background-color: #f8f9fa; display: flex; justify-content: center; padding: 20px; }
+        .container { background: white; padding: 30px; border-radius: 15px; box-shadow: 0 4px 20px rgba(0,0,0,0.1); width: 100%; max-width: 500px; }
+        h2 { text-align: center; color: #007bff; margin-bottom: 25px; }
+        .input-group { margin-bottom: 15px; }
+        label { display: block; margin-bottom: 5px; font-weight: bold; color: #444; }
+        input, select { width: 100%; padding: 12px; border: 1px solid #ddd; border-radius: 8px; box-sizing: border-box; font-size: 16px; }
+        button { width: 100%; padding: 12px; border: none; border-radius: 8px; cursor: pointer; font-size: 18px; transition: 0.3s; margin-top: 10px; }
+        #start-btn { background-color: #28a745; color: white; }
+        #start-btn:hover { background-color: #218838; }
+        .hidden { display: none; }
+        .option-btn { background-color: #fff; border: 2px solid #eee; text-align: left; padding: 15px; color: #333; margin-bottom: 10px; width: 100%; }
+        .option-btn:hover { border-color: #007bff; background-color: #f0f7ff; }
+        #progress { text-align: right; font-size: 14px; color: #888; margin-bottom: 10px; }
+        #question-display { font-size: 36px; text-align: center; margin: 30px 0; font-weight: bold; color: #222; }
+        .score-text { font-size: 64px; color: #dc3545; text-align: center; margin: 20px 0; font-weight: bold; }
+        #saving-loader { text-align: center; color: #666; font-style: italic; margin-top: 15px; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div id="setup-page">
+        <h2>單字測驗</h2>
+        <div class="input-group">
+            <label>班級</label><input type="text" id="stu-class" placeholder="例如：601">
+        </div>
+        <div class="input-group">
+            <label>座號</label><input type="number" id="stu-no" placeholder="例如：1">
+        </div>
+        <div class="input-group">
+            <label>姓名</label><input type="text" id="stu-name" placeholder="請輸入姓名">
+        </div>
+        <div class="input-group">
+            <label>測驗題數</label>
+            <select id="quiz-count">
+                <option value="20">20 題 (每題 5 分)</option>
+                <option value="50">50 題 (每題 2 分)</option>
+            </select>
+        </div>
+        <div class="input-group">
+            <label>測驗模式</label>
+            <select id="quiz-mode">
+                <option value="en-to-ch">英翻中</option>
+                <option value="ch-to-en">中翻英</option>
+            </select>
+        </div>
+        <button id="start-btn" onclick="initQuiz()">開始測驗</button>
+    </div>
+
+    <div id="quiz-page" class="hidden">
+        <div id="progress">第 1 題 / 共 0 題</div>
+        <div id="question-display">Word</div>
+        <div id="options-area"></div>
+    </div>
+
+    <div id="result-page" class="hidden">
+        <h2>測驗結束</h2>
+        <div id="result-info" style="text-align: center; font-size: 18px;"></div>
+        <div class="score-text" id="final-score">0</div>
+        <div id="saving-loader">準備儲存成績...</div>
+        <button onclick="location.reload()" style="background-color: #007bff; color: white;">再測一次</button>
+    </div>
+</div>
+
+<script>
+    const wordBank = [
+        {en:"red", ch:"紅色的"}, {en:"pink", ch:"粉紅色的"}, {en:"blue", ch:"藍色的"}, {en:"gray", ch:"灰色的"}, {en:"color", ch:"顏色"},
+        {en:"black", ch:"黑色的"}, {en:"white", ch:"白色的"}, {en:"green", ch:"綠色的"}, {en:"brown", ch:"棕色的"}, {en:"yellow", ch:"黃色的"},
+        {en:"purple", ch:"紫色的"}, {en:"orange", ch:"橘色的"}, {en:"zero", ch:"零"}, {en:"one", ch:"一"}, {en:"two", ch:"二"},
+        {en:"three", ch:"三"}, {en:"four", ch:"四"}, {en:"five", ch:"五"}, {en:"six", ch:"六"}, {en:"seven", ch:"七"},
+        {en:"eight", ch:"八"}, {en:"nine", ch:"九"}, {en:"ten", ch:"十"}, {en:"eleven", ch:"十一"}, {en:"twelve", ch:"十二"},
+        {en:"fifteen", ch:"十五"}, {en:"twenty", ch:"二十"}, {en:"thirty", ch:"三十"}, {en:"forty", ch:"四十"}, {en:"fifty", ch:"五十"},
+        {en:"pig", ch:"豬"}, {en:"pet", ch:"寵物"}, {en:"ant", ch:"螞蟻"}, {en:"cow", ch:"牛"}, {en:"bat", ch:"蝙蝠"},
+        {en:"fox", ch:"狐狸"}, {en:"bee", ch:"蜜蜂"}, {en:"hen", ch:"母雞"}, {en:"bear", ch:"熊"}, {en:"lion", ch:"獅子"},
+        {en:"tiger", ch:"老虎"}, {en:"bird", ch:"鳥"}, {en:"frog", ch:"青蛙"}, {en:"goat", ch:"山羊"}, {en:"mouse", ch:"老鼠"},
+        {en:"horse", ch:"馬"}, {en:"rabbit", ch:"兔子"}, {en:"monkey", ch:"猴子"}, {en:"sheep", ch:"綿羊"}, {en:"zebra", ch:"斑馬"},
+        {en:"elephant", ch:"大象"}, {en:"turtle", ch:"烏龜"}, {en:"koala", ch:"無尾熊"}, {en:"boy", ch:"男孩"}, {en:"girl", ch:"女孩"},
+        {en:"child", ch:"小孩"}, {en:"baby", ch:"嬰兒"}, {en:"man", ch:"男人"}, {en:"woman", ch:"女人"}, {en:"people", ch:"人們"},
+        {en:"friend", ch:"朋友"}, {en:"king", ch:"國王"}, {en:"queen", ch:"皇后"}, {en:"father", ch:"父親"}, {en:"mother", ch:"母親"},
+        {en:"son", ch:"兒子"}, {en:"daughter", ch:"女兒"}, {en:"sister", ch:"姊妹"}, {en:"brother", ch:"兄弟"}, {en:"family", ch:"家庭"},
+        {en:"grandma", ch:"祖母"}, {en:"grandpa", ch:"祖父"}, {en:"leg", ch:"腿"}, {en:"ear", ch:"耳朵"}, {en:"eye", ch:"眼睛"},
+        {en:"toe", ch:"腳趾"}, {en:"arm", ch:"手臂"}, {en:"head", ch:"頭"}, {en:"hand", ch:"手"}, {en:"face", ch:"臉"},
+        {en:"hair", ch:"頭髮"}, {en:"foot", ch:"腳"}, {en:"nose", ch:"鼻子"}, {en:"body", ch:"身體"}, {en:"neck", ch:"脖子"},
+        {en:"back", ch:"背部"}, {en:"heart", ch:"心"}, {en:"mouth", ch:"嘴巴"}, {en:"finger", ch:"手指"}, {en:"tooth", ch:"牙齒"},
+        {en:"hot", ch:"熱的"}, {en:"cold", ch:"冷的"}, {en:"sunny", ch:"晴朗的"}, {en:"cloudy", ch:"多雲的"}, {en:"rainy", ch:"下雨的"},
+        {en:"windy", ch:"有風的"}, {en:"eraser", ch:"橡皮擦"}, {en:"marker", ch:"麥克筆"}, {en:"pencil", ch:"鉛筆"}, {en:"quiz", ch:"小考"},
+        {en:"student", ch:"學生"}, {en:"classmate", ch:"同學"}, {en:"glue", ch:"膠水"}, {en:"paper", ch:"紙"}, {en:"notebook", ch:"筆記本"},
+        {en:"workbook", ch:"作業簿"}, {en:"homework", ch:"家庭作業"}, {en:"ruler", ch:"尺"}, {en:"pen", ch:"筆"}, {en:"box", ch:"盒子"},
+        {en:"chair", ch:"椅子"}, {en:"table", ch:"桌子"}, {en:"window", ch:"窗戶"}, {en:"comic", ch:"漫畫"}, {en:"computer", ch:"電腦"},
+        {en:"telephone", ch:"電話"}, {en:"bag", ch:"袋子"}, {en:"mask", ch:"口罩"}, {en:"fever", ch:"發燒"}, {en:"headache", ch:"頭痛"},
+        {en:"one hundred", ch:"一百"}, {en:"English", ch:"英語"}, {en:"Chinese", ch:"中文"}, {en:"science", ch:"自然"}, {en:"music", ch:"音樂"},
+        {en:"math", ch:"數學"}, {en:"art", ch:"美術"}, {en:"classroom", ch:"教室"}, {en:"library", ch:"圖書館"}, {en:"restroom", ch:"廁所"},
+        {en:"bedroom", ch:"臥室"}, {en:"bathroom", ch:"浴室"}, {en:"kitchen", ch:"廚房"}, {en:"apartment", ch:"公寓"}, {en:"store", ch:"商店"},
+        {en:"temple", ch:"寺廟"}, {en:"supermarket", ch:"超級市場"}, {en:"bookstore", ch:"書店"}, {en:"park", ch:"公園"}, {en:"hospital", ch:"醫院"},
+        {en:"museum", ch:"博物館"}, {en:"bank", ch:"銀行"}, {en:"post office", ch:"郵局"}, {en:"road", ch:"路"}, {en:"street", ch:"街"},
+        {en:"baseball", ch:"棒球"}, {en:"basketball", ch:"籃球"}, {en:"dodgeball", ch:"躲避球"}, {en:"dress", ch:"洋裝"}, {en:"jacket", ch:"夾克"},
+        {en:"skirt", ch:"裙子"}, {en:"shorts", ch:"短褲"}, {en:"socks", ch:"襪子"}, {en:"today", ch:"今天"}, {en:"Monday", ch:"星期一"},
+        {en:"Tuesday", ch:"星期二"}, {en:"Wednesday", ch:"星期三"}, {en:"Thursday", ch:"星期四"}, {en:"Friday", ch:"星期五"}, {en:"Saturday", ch:"星期六"},
+        {en:"Sunday", ch:"星期日"}, {en:"apple", ch:"蘋果"}, {en:"milk", ch:"牛奶"}, {en:"tea", ch:"茶"}, {en:"banana", ch:"香蕉"},
+        {en:"egg", ch:"蛋"}, {en:"juice", ch:"果汁"}, {en:"dinner", ch:"晚餐"}, {en:"lunch", ch:"午餐"}, {en:"soup", ch:"湯"},
+        {en:"water", ch:"水"}, {en:"breakfast", ch:"早餐"}, {en:"sandwich", ch:"三明治"}, {en:"hamburger", ch:"漢堡"}, {en:"smart", ch:"聰明的"},
+        {en:"angry", ch:"生氣的"}, {en:"happy", ch:"快樂的"}, {en:"sad", ch:"難過的"}, {en:"hungry", ch:"飢餓的"}, {en:"thirsty", ch:"口渴的"}
+    ];
+
+    let quizList = [];
+    let currentIndex = 0;
+    let score = 0;
+    let unitScore = 0;
+    let quizMode = 'en-to-ch';
+    
+    // 您的 Google Apps Script 部署網址
+    const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxpJr9woHPU7yp-ZEm1misUFE4-HtkxtjELSIFiqD7w2TK9IpF_f6oBRpkOCR5WVBGk/exec"; 
+
+    function initQuiz() {
+        const count = parseInt(document.getElementById('quiz-count').value);
+        quizMode = document.getElementById('quiz-mode').value;
+        const name = document.getElementById('stu-name').value;
+        const cls = document.getElementById('stu-class').value;
+        const no = document.getElementById('stu-no').value;
+
+        if(!name || !cls || !no) return alert("請填寫班級、座號與姓名");
+
+        unitScore = 100 / count;
+        // 隨機選題
+        quizList = [...wordBank].sort(() => 0.5 - Math.random()).slice(0, count);
+        
+        document.getElementById('setup-page').classList.add('hidden');
+        document.getElementById('quiz-page').classList.remove('hidden');
+        
+        renderQuestion();
+    }
+
+    function renderQuestion() {
+        const q = quizList[currentIndex];
+        document.getElementById('progress').innerText = `第 ${currentIndex + 1} 題 / 共 ${quizList.length} 題`;
+        document.getElementById('question-display').innerText = (quizMode === 'en-to-ch') ? q.en : q.ch;
+
+        // 產生選項（正確答案 + 3個隨機錯誤答案）
+        let options = [q];
+        while(options.length < 4) {
+            let rand = wordBank[Math.floor(Math.random() * wordBank.length)];
+            if(!options.includes(rand)) options.push(rand);
+        }
+        options.sort(() => 0.5 - Math.random());
+
+        const area = document.getElementById('options-area');
+        area.innerHTML = '';
+        options.forEach(opt => {
+            const btn = document.createElement('button');
+            btn.className = 'option-btn';
+            btn.innerText = (quizMode === 'en-to-ch') ? opt.ch : opt.en;
+            btn.onclick = () => handleAnswer(opt === q);
+            area.appendChild(btn);
+        });
+    }
+
+    function handleAnswer(isCorrect) {
+        if(isCorrect) score += unitScore;
+        currentIndex++;
+        
+        if(currentIndex < quizList.length) {
+            renderQuestion();
+        } else {
+            showFinal();
+        }
+    }
+
+    function showFinal() {
+        document.getElementById('quiz-page').classList.add('hidden');
+        document.getElementById('result-page').classList.remove('hidden');
+        
+        const finalScore = Math.round(score);
+        const stuClass = document.getElementById('stu-class').value;
+        const stuNo = document.getElementById('stu-no').value;
+        const stuName = document.getElementById('stu-name').value;
+        const qCount = document.getElementById('quiz-count').value;
+
+        document.getElementById('result-info').innerText = `${stuClass} 班 ${stuNo} 號 ${stuName}`;
+        document.getElementById('final-score').innerText = finalScore;
+
+        // 傳送資料到 Google Sheets
+        document.getElementById('saving-loader').innerText = "正在儲存成績至雲端...";
+        document.getElementById('saving-loader').style.color = "#666";
+
+        fetch(SCRIPT_URL, {
+            method: 'POST',
+            mode: 'no-cors',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                cls: stuClass,
+                no: stuNo,
+                name: stuName,
+                count: qCount,
+                mode: (quizMode === 'en-to-ch' ? "英翻中" : "中翻英"),
+                score: finalScore
+            })
+        }).then(() => {
+            document.getElementById('saving-loader').innerText = "✅ 成績已成功上傳試算表";
+            document.getElementById('saving-loader').style.color = "green";
+        }).catch(err => {
+            document.getElementById('saving-loader').innerText = "❌ 上傳失敗，請檢查網路或聯絡老師";
+            document.getElementById('saving-loader').style.color = "red";
+            console.error(err);
+        });
+    }
+</script>
+
+</body>
+</html>
